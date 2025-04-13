@@ -12,7 +12,7 @@ public class CatImpl implements Cat {
 		this.name = name;
 		this.rented = false;
 	}
-
+//CATS
 	public void rentCat() {
 		this.rented = true;
 	}
