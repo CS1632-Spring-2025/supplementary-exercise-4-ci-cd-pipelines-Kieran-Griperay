@@ -10,62 +10,120 @@ on:
     branches: [ "main" ]
 
 jobs:
-  
+
   # Runs the Maven test phase on the project
   maven_test:
-
     runs-on: ubuntu-latest
-
     permissions:
-      contents: read
+      contents: read # Read permission needed for checkout
 
     steps:
+      # Checkout repository
+      - name: Checkout repository
+        uses: actions/checkout@v3 # Using v3 consistent with original job
 
-    # The uses: keyword invokes a GitHub action:
-    # https://github.com/marketplace/actions/checkout
-    - name: Checkout repository
-      uses: actions/checkout@v3
+      # Set up JDK 11
+      - name: Set up JDK 11
+        uses: actions/setup-java@v3 # Using v3 consistent with original job
+        with:
+          java-version: '11'
+          distribution: 'zulu'
+          cache: maven # Cache Maven dependencies specific to this JDK/pom
 
-    # This invokes the Setup Java JDK GitHub action:
-    # https://github.com/marketplace/actions/setup-java-jdk
-    - name: Set up JDK 11
-      uses: actions/setup-java@v3
-      with:
-        java-version: '11'
-        distribution: 'zulu'
-        cache: maven
+      # Run tests
+      - name: Test with Maven
+        run: mvn test
 
-    - name: Test with Maven
-      run: mvn test
+      # Upload test results (Jacoco)
+      - name: Upload jacoco results as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Jacoco coverage results
+          path: target/site/jacoco
 
-    # https://github.com/marketplace/actions/upload-a-build-artifact
-    - name: Upload jacoco results as artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: Jacoco coverage results
-        path: target/site/jacoco
-    - name: Cache build
-      uses: actions/cache@v3
-      with:
-        key: cached-build-${{github.sha}}
-        path: .
+      # Cache the entire build directory for subsequent jobs
+      - name: Cache build directory
+        uses: actions/cache@v3 # Using v3 consistent with restore steps
+        with:
+          key: cached-build-${{github.sha}} # Key based on commit SHA
+          path: . # Cache the entire current directory
+
+  # Builds the project and runs SonarCloud analysis
+  build:
+    needs: [maven_test] # <<< Runs after maven_test completes successfully
+    name: Build and analyze
+    runs-on: ubuntu-latest
+    # Default permissions are usually sufficient (contents: read)
+    # Add write permission if Sonar needs to push results somewhere unexpected:
+    # permissions:
+    #   contents: write
+
+    steps:
+      # <<< This replaces the 'actions/checkout@v4' step as per instructions >>>
+      - name: Restore cached build directory
+        uses: actions/cache@v3 # Use v3 to match the saving step in maven_test
+        with:
+          key: cached-build-${{github.sha}} # Use the SAME key as maven_test cache
+          path: . # Restore the entire directory
+
+      # Set up JDK 17 for analysis (can differ from test JDK)
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: 17
+          distribution: 'zulu'
+
+      # Cache SonarQube specific packages
+      - name: Cache SonarQube packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+
+      # Cache Maven packages (potentially different from JDK 11 if needed)
+      # Note: This might be redundant if '.' restore includes ~/.m2,
+      # but standard practice is to cache ~/.m2 separately.
+      - name: Cache Maven packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2
+
+      # Run the build and analysis
+      - name: Build and analyze
+        env:
+          # Use the token stored in GitHub secrets
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          # GITHUB_TOKEN is often required by Sonar for PR decoration
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # Use mvn verify to ensure compilation and packaging before analysis
+        run: mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.projectKey=CS1632-Spring-2025_supplementary-exercise-4-ci-cd-pipelines-Kieran-Griperay
 
   # Uploads dependency graph to GitHub to receive Dependabot alerts.
   update_dependence_graph:
-    needs: [maven_test]
+    needs: [maven_test] # <<< Runs after maven_test completes successfully
     runs-on: ubuntu-latest
-
     permissions:
-      contents: write
+      contents: write # Needs write permission to submit dependency graph
 
     steps:
-    - name: Restore cached build
-      uses: actions/cache@v3
-      with:
-        key: cached-build-${{github.sha}}
-        path: .
+      # Restore the build directory cached by maven_test
+      - name: Restore cached build directory
+        uses: actions/cache@v3 # Use v3 to match the saving step
+        with:
+          key: cached-build-${{github.sha}} # Use the SAME key
+          path: . # Restore the entire directory
 
-    # https://github.com/marketplace/actions/maven-dependency-tree-dependency-submission
-    - name: Update dependency graph
-      uses: advanced-security/maven-dependency-submission-action@v3
+      # Set up JDK (needed to run the dependency submission action which invokes Maven)
+      # Use the same JDK as the test phase or build phase, e.g., JDK 11
+      - name: Set up JDK 11
+        uses: actions/setup-java@v3
+        with:
+          java-version: '11'
+          distribution: 'zulu'
 
+      # Submit dependency graph
+      - name: Update dependency graph
+        uses: advanced-security/maven-dependency-submission-action@v3 # Using v3 as in original job
