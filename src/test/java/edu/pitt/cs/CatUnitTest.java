@@ -32,6 +32,7 @@ public class CatUnitTest {
 		// Passing InstanceType.MOCK as the first parameter will create a mock cat using Mockito.
 		// Which type is the correct choice for this unit test?  I'll leave it up to you.  The answer is in the Unit Testing Part 2 lecture. :)
 		// TODO: Fill in
+		c = Cat.createInstance(InstanceType.IMPL, 1, "Jennyanydots");
 	}
 
 	@After
@@ -51,8 +52,9 @@ public class CatUnitTest {
 	 * </pre>
 	 */
 	@Test
-	public void testGetId() {
-		// TODO: Fill in
+	public void testGetId() { 
+		int test_object = c.getId();
+		assertEquals(1, test_object);	
 	}
 
 	/**
@@ -65,8 +67,9 @@ public class CatUnitTest {
 	 * </pre>
 	 */
 	@Test
-	public void testGetName() {
-		// TODO: Fill in
+	public void testGetName() { 
+		String test_object = c.getName();
+		assertEquals("Jennyanydots", test_object);	
 	}
 
 	/**
@@ -79,8 +82,9 @@ public class CatUnitTest {
 	 * </pre>
 	 */
 	@Test
-	public void testGetRented() {
-		// TODO: Fill in
+	public void testGetRented() { 
+		Boolean test_object = c.getRented();
+		assertEquals(false, test_object);	
 	}
 
 	/**
@@ -93,8 +97,9 @@ public class CatUnitTest {
 	 * </pre>
 	 */
 	@Test
-	public void testToString() {
-		// TODO: Fill in
+	public void testToString() { 
+		String test_object = c.toString();
+		assertEquals("ID 1. Jennyanydots", test_object);	
 	}
 
 	/**
@@ -108,8 +113,11 @@ public class CatUnitTest {
 	 * </pre>
 	 */
 	@Test
-	public void testRentCat() {
-		// TODO: Fill in
+	public void testRentCat() { 
+		c.rentCat();
+		Boolean test_object = c.getRented();
+		assertEquals(true, test_object);	
+
 	}
 
 	/**
@@ -124,8 +132,11 @@ public class CatUnitTest {
 	 * </pre>
 	 */
 	@Test
-	public void testReturnCat() {
-		// TODO: Fill in
+	public void testReturnCat() { 
+		c.rentCat();
+		c.returnCat();
+		Boolean test_object = c.getRented();
+		assertEquals(false, test_object);	
 	}
 
 	/**
@@ -140,7 +151,11 @@ public class CatUnitTest {
 	 */
 	@Test
 	public void testRenameCat() {
-		// TODO: Fill in
+		c.renameCat("Garfield");
+		String catName = c.getName();
+		String catToString = c.toString();
+		assertEquals("Garfield", catName);
+		assertEquals("ID 1. Garfield", catToString);
 	}
 
 }
